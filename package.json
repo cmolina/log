@@ -1,6 +1,6 @@
 {
   "name": "@cmolina/log",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Log before and after functions and methods are executed.",
   "files": "dist",
   "main": "dist/index.js",
