@@ -1,17 +1,20 @@
-interface LogFunctionOptions {
-    onStart?: (signature: string) => void;
-    onEnd?: (signature: string, result: unknown) => void;
-    className?: string;
+const defaultOptions = { onStart, onEnd };
+
+export function log<T extends Function | object>(fnOrInstance: T, options?: LogOptions): T {
+    const sanitizedOptions = Object.assign({}, defaultOptions, options);
+
+    if (isFunction(fnOrInstance)) {
+        return logFunction(fnOrInstance, sanitizedOptions);
+    }
+    return loggingMethodsFor(fnOrInstance, sanitizedOptions);
 }
 
-const defaultOptions: LogFunctionOptions = { className: '', onStart, onEnd };
-
-export function logFunction(methodOrFn: Function, options?: LogFunctionOptions): Function {
-    const { className, onStart, onEnd } = Object.assign({}, defaultOptions, options);
+function logFunction<T extends Function>(methodOrFn: T, options: LogFunctionOptions): T {
+    const { className, onStart, onEnd } = options;
 
     return new Proxy(methodOrFn, {
         apply(fn, thisArg, argumentsList) {
-            const functionName = fn.name;
+            const functionName = options.functionName || fn.name;
             const signature = stringifySignature({ argumentsList, className, functionName });
             if (isFunction(onStart)) onStart(signature);
 
@@ -23,19 +26,20 @@ export function logFunction(methodOrFn: Function, options?: LogFunctionOptions):
     })
 }
 
-export function loggingMethodsFor<T extends object, U extends keyof T>(instance: T): T {
+function loggingMethodsFor<T extends object, U extends keyof T>(instance: T, options: LogFunctionOptions): T {
+    const className = instance.constructor.name;
+
     return new Proxy(instance, {
         get(target, propertyName) {
-            const property = target[propertyName as U] as unknown;
+            const property = target[propertyName as U];
 
             if (isFunction(property)) {
-                const className = target.constructor.name;
-                return logFunction(property, { className });
-            } else {
-                return property;
+                options = Object.assign({}, options, { className, functionName: propertyName });
+                return logFunction(property, options);
             }
+            return property;
         }
-    })
+    });
 }
 
 function stringifySignature(args: { className?: string, functionName: string, argumentsList: any[] }): string {
@@ -50,10 +54,20 @@ function onStart(signature: string): void {
 
 function onEnd(signature: string, result: unknown): void {
     if (isPromise(result)) {
-        result.then(output => console.log(`${signature} returns ${output}`));
+        result.then(output => console.log(`${signature} returned ${output}`));
     } else {
-        console.log(`${signature} returns ${result}`);
+        console.log(`${signature} returned ${result}`);
     }
+}
+
+interface LogOptions {
+    onStart?: (signature: string) => void;
+    onEnd?: (signature: string, result: unknown) => void;
+}
+
+interface LogFunctionOptions extends LogOptions {
+    functionName?: string;
+    className?: string;
 }
 
 function isFunction(value: any): value is Function {
