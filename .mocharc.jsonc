@@ -1,0 +1,5 @@
+// https://mochajs.org/#configuring-mocha-nodejs
+{
+    "require": "ts-node/register",  /* load the TypeScript compiler */
+    "extension": "ts"               /* consider *.ts files */
+}
